@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Kafa Topu 1v1 Pro</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div id="app">
+  <section id="menu" class="screen">
+    <div class="logo">KAFA <span>TOPU</span></div>
+    <div class="card">
+      <h2>1V1 ONLINE</h2>
+      <input id="name" maxlength="16" placeholder="Oyuncu adın" autocomplete="off">
+      <button id="create" class="btn primary">⚽ ODA OLUŞTUR</button>
+      <div class="divider">VEYA</div>
+      <input id="code" maxlength="5" placeholder="ODA KODU" autocomplete="off">
+      <button id="join" class="btn">ODAYA KATIL</button>
+      <p id="status">Arkadaşınla aynı odada karşılaş.</p>
+      <div id="roomBox" class="room hidden"><small>ODA KODU</small><b id="roomCode">-----</b><button id="copy">KODU KOPYALA</button></div>
+    </div>
+  </section>
+
+  <section id="game" class="screen hidden">
+    <div class="topbar">
+      <div class="playerTag p1"><b id="n0">Oyuncu 1</b><strong id="s0">0</strong></div>
+      <div id="time">90</div>
+      <div class="playerTag p2"><strong id="s1">0</strong><b id="n1">Oyuncu 2</b></div>
+    </div>
+    <canvas id="canvas"></canvas>
+    <div id="touch">
+      <div><button data-k="left">◀</button><button data-k="right">▶</button></div>
+      <div><button data-k="jump">⬆</button><button data-k="shoot">⚡</button></div>
+    </div>
+    <div id="overlay" class="overlay hidden">
+      <div class="result"><div id="resultTitle"></div><div id="resultScore"></div><button id="rematch" class="btn primary">🔄 YENİDEN MAÇ</button><button id="back" class="btn">ANA MENÜ</button></div>
+    </div>
+  </section>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/script.js"></script>
+</body>
+</html>
