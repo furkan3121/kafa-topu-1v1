@@ -8,27 +8,40 @@ const canvas = $("canvas");
 const ctx = canvas.getContext("2d");
 
 const input = {
-left: false,
-right: false,
-jump: false,
-shoot: false
+  left: false,
+  right: false,
+  jump: false,
+  shoot: false
 };
 
 let me = 0;
 let roomId = "";
 
 let state = {
-players: [
-{ x: 180, y: 448, vx: 0, vy: 0 },
-{ x: 1020, y: 448, vx: 0, vy: 0 }
-],
-ball: { x: 600, y: 315, r: 24 },
-scores: [0, 0],
-time: 90,
-started: false
+  players: [
+    { x: 180, y: 448, vx: 0, vy: 0 },
+    { x: 1020, y: 448, vx: 0, vy: 0 }
+  ],
+
+  ball: {
+    x: 600,
+    y: 315,
+    r: 24
+  },
+
+  scores: [0, 0],
+  time: 90,
+  started: false,
+
+  power: null,
+  powerTimer: 30
 };
 
-let names = ["Oyuncu 1", "Oyuncu 2"];
+let names = [
+  "Oyuncu 1",
+  "Oyuncu 2"
+];
+
 let audio = null;
 
 /* =========================
@@ -36,49 +49,124 @@ SES
 ========================= */
 
 function sound(type) {
-try {
-audio ||= new (window.AudioContext || window.webkitAudioContext)();
+  try {
+    audio ||= new (
+      window.AudioContext ||
+      window.webkitAudioContext
+    )();
 
-if (audio.state === "suspended") audio.resume();
+    if (audio.state === "suspended") {
+      audio.resume();
+    }
 
-const o = audio.createOscillator();
-const g = audio.createGain();
+    const o =
+      audio.createOscillator();
 
-o.connect(g);
-g.connect(audio.destination);
+    const g =
+      audio.createGain();
 
-const now = audio.currentTime;
+    o.connect(g);
+    g.connect(audio.destination);
 
-if (type === "goal") {
-  o.frequency.setValueAtTime(220, now);
-  o.frequency.exponentialRampToValueAtTime(660, now + 0.22);
+    const now =
+      audio.currentTime;
 
-  g.gain.setValueAtTime(0.12, now);
-  g.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+    if (type === "goal") {
 
-  o.start();
-  o.stop(now + 0.45);
+      o.frequency.setValueAtTime(
+        220,
+        now
+      );
 
-} else if (type === "kick") {
-  o.frequency.value = 110;
+      o.frequency.exponentialRampToValueAtTime(
+        660,
+        now + 0.22
+      );
 
-  g.gain.setValueAtTime(0.06, now);
-  g.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+      g.gain.setValueAtTime(
+        0.12,
+        now
+      );
 
-  o.start();
-  o.stop(now + 0.09);
+      g.gain.exponentialRampToValueAtTime(
+        0.001,
+        now + 0.45
+      );
 
-} else {
-  o.frequency.value = 440;
+      o.start();
+      o.stop(
+        now + 0.45
+      );
 
-  g.gain.setValueAtTime(0.04, now);
-  g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+    } else if (type === "kick") {
 
-  o.start();
-  o.stop(now + 0.12);
-}
+      o.frequency.value = 110;
 
-} catch {}
+      g.gain.setValueAtTime(
+        0.06,
+        now
+      );
+
+      g.gain.exponentialRampToValueAtTime(
+        0.001,
+        now + 0.09
+      );
+
+      o.start();
+      o.stop(
+        now + 0.09
+      );
+
+    } else if (
+      type === "power"
+    ) {
+
+      o.frequency.setValueAtTime(
+        330,
+        now
+      );
+
+      o.frequency.exponentialRampToValueAtTime(
+        880,
+        now + 0.18
+      );
+
+      g.gain.setValueAtTime(
+        0.08,
+        now
+      );
+
+      g.gain.exponentialRampToValueAtTime(
+        0.001,
+        now + 0.35
+      );
+
+      o.start();
+      o.stop(
+        now + 0.35
+      );
+
+    } else {
+
+      o.frequency.value = 440;
+
+      g.gain.setValueAtTime(
+        0.04,
+        now
+      );
+
+      g.gain.exponentialRampToValueAtTime(
+        0.001,
+        now + 0.12
+      );
+
+      o.start();
+      o.stop(
+        now + 0.12
+      );
+    }
+
+  } catch {}
 }
 
 /* =========================
@@ -86,19 +174,31 @@ OYUN EKRANI
 ========================= */
 
 function goGame() {
-menu.classList.add("hidden");
-game.classList.remove("hidden");
-resize();
+  menu.classList.add("hidden");
+  game.classList.remove("hidden");
+
+  resize();
 }
 
 function resize() {
-const d = Math.min(window.devicePixelRatio || 1, 2);
+  const d =
+    Math.min(
+      window.devicePixelRatio || 1,
+      2
+    );
 
-canvas.width = innerWidth * d;
-canvas.height = innerHeight * d;
+  canvas.width =
+    innerWidth * d;
+
+  canvas.height =
+    innerHeight * d;
 }
 
-window.addEventListener("resize", resize);
+window.addEventListener(
+  "resize",
+  resize
+);
+
 resize();
 
 /* =========================
@@ -107,32 +207,46 @@ ODA OLUŞTUR
 
 $("create").onclick = () => {
 
-const name =
-$("name").value.trim() || "Oyuncu 1";
+  const name =
+    $("name").value.trim() ||
+    "Oyuncu 1";
 
-$("status").textContent =
-"Oda oluşturuluyor...";
-
-socket.emit("createRoom", { name }, result => {
-
-if (!result || !result.ok) {
   $("status").textContent =
-    "Oda oluşturulamadı.";
-  return;
-}
+    "Oda oluşturuluyor...";
 
-me = result.index;
-roomId = result.roomId;
+  socket.emit(
+    "createRoom",
+    { name },
+    result => {
 
-$("roomCode").textContent = roomId;
-$("roomBox").classList.remove("hidden");
+      if (
+        !result ||
+        !result.ok
+      ) {
 
-$("status").textContent =
-  "Arkadaşın bu kodu girerek katılsın.";
+        $("status").textContent =
+          "Oda oluşturulamadı.";
 
-sound("ui");
+        return;
+      }
 
-});
+      me = result.index;
+      roomId =
+        result.roomId;
+
+      $("roomCode").textContent =
+        roomId;
+
+      $("roomBox")
+        .classList
+        .remove("hidden");
+
+      $("status").textContent =
+        "Arkadaşın bu kodu girerek katılsın.";
+
+      sound("ui");
+    }
+  );
 };
 
 /* =========================
@@ -141,256 +255,356 @@ ODAYA KATIL
 
 $("join").onclick = () => {
 
-const rid =
-$("code").value.trim().toUpperCase();
+  const rid =
+    $("code").value
+      .trim()
+      .toUpperCase();
 
-const name =
-$("name").value.trim() || "Oyuncu 2";
+  const name =
+    $("name").value.trim() ||
+    "Oyuncu 2";
 
-if (!rid) {
-$("status").textContent =
-"Oda kodu gir.";
-return;
-}
+  if (!rid) {
 
-$("status").textContent =
-"Odaya bağlanılıyor...";
-
-socket.emit(
-"joinRoom",
-{
-roomId: rid,
-name
-},
-result => {
-
-  if (!result || !result.ok) {
     $("status").textContent =
-      result?.error || "Odaya katılamadı.";
+      "Oda kodu gir.";
+
     return;
   }
 
-  me = result.index;
-  roomId = result.roomId;
+  $("status").textContent =
+    "Odaya bağlanılıyor...";
 
-  goGame();
-}
+  socket.emit(
+    "joinRoom",
+    {
+      roomId: rid,
+      name
+    },
+    result => {
 
-);
+      if (
+        !result ||
+        !result.ok
+      ) {
+
+        $("status").textContent =
+          result?.error ||
+          "Odaya katılamadı.";
+
+        return;
+      }
+
+      me = result.index;
+      roomId =
+        result.roomId;
+
+      goGame();
+    }
+  );
 };
 
 /* =========================
 KOD KOPYALA
 ========================= */
 
-$("copy").onclick = async () => {
+$("copy").onclick =
+  async () => {
 
-try {
+    try {
 
-await navigator.clipboard.writeText(roomId);
+      await navigator.clipboard
+        .writeText(roomId);
 
-$("copy").textContent =
-  "KOPYALANDI ✓";
+      $("copy").textContent =
+        "KOPYALANDI ✓";
 
-} catch {
+    } catch {
 
-$("status").textContent =
-  "Kod: " + roomId;
-
-}
-};
+      $("status").textContent =
+        "Kod: " + roomId;
+    }
+  };
 
 /* =========================
 YENİDEN MAÇ
 ========================= */
 
-$("rematch").onclick = () => {
+$("rematch").onclick =
+  () => {
 
-$("overlay").classList.add("hidden");
+    $("overlay")
+      .classList
+      .add("hidden");
 
-socket.emit("rematch");
-};
+    socket.emit(
+      "rematch"
+    );
+  };
 
 /* =========================
 ANA MENÜ
 ========================= */
 
 $("back").onclick = () => {
-location.reload();
+  location.reload();
 };
 
 /* =========================
 ODA DURUMU
 ========================= */
 
-socket.on("lobby", data => {
+socket.on(
+  "lobby",
+  data => {
 
-names = data.names || names;
+    names =
+      data.names ||
+      names;
 
-$("n0").textContent = names[0];
-$("n1").textContent = names[1];
+    $("n0").textContent =
+      names[0];
 
-if (data.count < 2) {
+    $("n1").textContent =
+      names[1];
 
-$("status").textContent =
-  "Arkadaş bekleniyor...";
+    if (
+      data.count < 2
+    ) {
 
-} else {
+      $("status").textContent =
+        "Arkadaş bekleniyor...";
 
-goGame();
+    } else {
 
-}
-});
+      goGame();
+    }
+  }
+);
 
 /* =========================
 MAÇ BAŞLADI
 ========================= */
 
-socket.on("matchStart", data => {
+socket.on(
+  "matchStart",
+  data => {
 
-names = data.names || names;
+    names =
+      data.names ||
+      names;
 
-$("n0").textContent = names[0];
-$("n1").textContent = names[1];
+    $("n0").textContent =
+      names[0];
 
-$("overlay").classList.add("hidden");
+    $("n1").textContent =
+      names[1];
 
-sound("ui");
-});
+    $("overlay")
+      .classList
+      .add("hidden");
+
+    sound("ui");
+  }
+);
 
 /* =========================
-SUNUCUDAN OYUN DURUMU
+OYUN STATE
 ========================= */
 
-socket.on("state", data => {
+socket.on(
+  "state",
+  data => {
 
-state = data;
+    state = data;
 
-$("s0").textContent =
-data.scores[0];
+    $("s0").textContent =
+      data.scores[0];
 
-$("s1").textContent =
-data.scores[1];
+    $("s1").textContent =
+      data.scores[1];
 
-$("time").textContent =
-Math.ceil(data.time);
-});
+    $("time").textContent =
+      Math.ceil(
+        data.time
+      );
+  }
+);
+
+/* =========================
+GÜÇ ÇIKTI
+========================= */
+
+socket.on(
+  "powerSpawn",
+  () => {
+    sound("power");
+  }
+);
+
+/* =========================
+GÜÇ ALINDI
+========================= */
+
+socket.on(
+  "powerCollected",
+  data => {
+
+    sound("power");
+
+    if (
+      data.player === me
+    ) {
+
+      const text =
+        powerName(
+          data.type
+        );
+
+      $("status").textContent =
+        "⚡ " + text;
+    }
+  }
+);
 
 /* =========================
 GOL
 ========================= */
 
-socket.on("goal", data => {
+socket.on(
+  "goal",
+  data => {
 
-sound("goal");
+    sound("goal");
 
-if (data?.scores) {
+    if (data?.scores) {
 
-$("s0").textContent =
-  data.scores[0];
+      $("s0").textContent =
+        data.scores[0];
 
-$("s1").textContent =
-  data.scores[1];
-
-}
-});
+      $("s1").textContent =
+        data.scores[1];
+    }
+  }
+);
 
 /* =========================
 MAÇ BİTTİ
 ========================= */
 
-socket.on("matchEnd", data => {
+socket.on(
+  "matchEnd",
+  data => {
 
-sound("goal");
+    sound("goal");
 
-if (data.winner === -1) {
+    if (
+      data.winner === -1
+    ) {
 
-$("resultTitle").textContent =
-  "BERABERE!";
+      $("resultTitle").textContent =
+        "BERABERE!";
 
-} else if (data.winner === me) {
+    } else if (
+      data.winner === me
+    ) {
 
-$("resultTitle").textContent =
-  "🏆 KAZANDIN!";
+      $("resultTitle").textContent =
+        "🏆 KAZANDIN!";
 
-} else {
+    } else {
 
-$("resultTitle").textContent =
-  "😅 KAYBETTİN!";
+      $("resultTitle").textContent =
+        "😅 KAYBETTİN!";
+    }
 
-}
+    $("resultScore").textContent =
+      `${data.scores[0]} - ${data.scores[1]}`;
 
-$("resultScore").textContent =
-"${data.scores[0]} - ${data.scores[1]}";
-
-$("overlay").classList.remove("hidden");
-});
+    $("overlay")
+      .classList
+      .remove("hidden");
+  }
+);
 
 /* =========================
 RAKİP ÇIKTI
 ========================= */
 
-socket.on("opponentLeft", () => {
+socket.on(
+  "opponentLeft",
+  () => {
 
-$("resultTitle").textContent =
-"RAKİP AYRILDI";
+    $("resultTitle").textContent =
+      "RAKİP AYRILDI";
 
-$("resultScore").textContent = "";
+    $("resultScore").textContent =
+      "";
 
-$("overlay").classList.remove("hidden");
-});
+    $("overlay")
+      .classList
+      .remove("hidden");
+  }
+);
 
-/* =====================================================
+/* =========================
+GÜÇ İSMİ
+========================= */
+
+function powerName(type) {
+
+  if (type === "speed")
+    return "HIZ GÜCÜ! ⚡";
+
+  if (type === "strongShot")
+    return "GÜÇLÜ ŞUT! 💥";
+
+  if (type === "superJump")
+    return "SÜPER ZIPLAMA! 🦘";
+
+  if (type === "shield")
+    return "KALKAN! 🛡️";
+
+  if (type === "slow")
+    return "RAKİP YAVAŞLADI! ❄️";
+
+  return "ÖZEL GÜÇ!";
+}
+
+/* =========================
 KONTROLLER
-===================================================== */
-
-/*
-Input'u sunucuya gönder.
-*/
+========================= */
 
 function sendInput() {
 
-if (!roomId) return;
+  socket.emit(
+    "input",
+    {
+      left:
+        !!input.left,
 
-socket.emit("input", {
-left: input.left === true,
-right: input.right === true,
-jump: input.jump === true,
-shoot: input.shoot === true
-});
+      right:
+        !!input.right,
+
+      jump:
+        !!input.jump,
+
+      shoot:
+        !!input.shoot
+    }
+  );
 }
 
-/*
-Tuş durumunu değiştir.
-*/
-
-function setInput(key, value) {
-
-input[key] = value;
-
-sendInput();
-}
-
-/*
-ÖNEMLİ:
-Tuşa basılı tutulduğu sürece input'u
-düzenli olarak sunucuya gönderiyoruz.
-*/
-
-setInterval(() => {
-
-if (!roomId) return;
-
-if (
-input.left ||
-input.right ||
-input.jump ||
-input.shoot
+function setInput(
+  key,
+  value
 ) {
-sendInput();
-}
 
-}, 50);
+  input[key] =
+    value;
+
+  sendInput();
+}
 
 /* =========================
 KLAVYE
@@ -398,150 +612,174 @@ KLAVYE
 
 function keyboardKey(code) {
 
-if (
-code === "KeyA" ||
-code === "ArrowLeft"
-) {
-return "left";
+  if (
+    code === "KeyA" ||
+    code === "ArrowLeft"
+  )
+    return "left";
+
+  if (
+    code === "KeyD" ||
+    code === "ArrowRight"
+  )
+    return "right";
+
+  if (
+    code === "KeyW" ||
+    code === "ArrowUp"
+  )
+    return "jump";
+
+  if (
+    code === "Space" ||
+    code === "Enter"
+  )
+    return "shoot";
+
+  return null;
 }
 
-if (
-code === "KeyD" ||
-code === "ArrowRight"
-) {
-return "right";
-}
+window.addEventListener(
+  "keydown",
+  e => {
 
-if (
-code === "KeyW" ||
-code === "ArrowUp"
-) {
-return "jump";
-}
+    const key =
+      keyboardKey(e.code);
 
-if (
-code === "Space" ||
-code === "Enter"
-) {
-return "shoot";
-}
+    if (!key) return;
 
-return null;
-}
+    e.preventDefault();
 
-window.addEventListener("keydown", e => {
+    if (!input[key]) {
 
-const key = keyboardKey(e.code);
+      setInput(
+        key,
+        true
+      );
 
-if (!key) return;
+      if (
+        key === "shoot"
+      ) {
+        sound("kick");
+      }
+    }
+  }
+);
 
-e.preventDefault();
+window.addEventListener(
+  "keyup",
+  e => {
 
-if (!input[key]) {
+    const key =
+      keyboardKey(e.code);
 
-setInput(key, true);
+    if (!key) return;
 
-if (key === "shoot") {
-  sound("kick");
-}
+    e.preventDefault();
 
-}
-});
-
-window.addEventListener("keyup", e => {
-
-const key = keyboardKey(e.code);
-
-if (!key) return;
-
-e.preventDefault();
-
-setInput(key, false);
-});
+    setInput(
+      key,
+      false
+    );
+  }
+);
 
 /* =========================
 TELEFON TUŞLARI
 ========================= */
 
 document
-.querySelectorAll("#touch button")
-.forEach(button => {
+  .querySelectorAll(
+    "#touch button"
+  )
+  .forEach(button => {
 
-const key = button.dataset.k;
+    const key =
+      button.dataset.k;
 
-const press = e => {
+    const press = e => {
 
-  e.preventDefault();
+      e.preventDefault();
 
-  /*
-     Parmağı tuşun üzerinde tutarken
-     tarayıcının pointer'ı kaybetmesini önle.
-  */
+      if (!input[key]) {
 
-  try {
-    button.setPointerCapture(e.pointerId);
-  } catch {}
+        setInput(
+          key,
+          true
+        );
 
-  if (!input[key]) {
+        if (
+          key === "shoot"
+        ) {
+          sound("kick");
+        }
+      }
+    };
 
-    setInput(key, true);
+    const release = e => {
 
-    if (key === "shoot") {
-      sound("kick");
-    }
-  }
-};
+      e.preventDefault();
 
+      setInput(
+        key,
+        false
+      );
+    };
 
-const release = e => {
+    button.addEventListener(
+      "pointerdown",
+      press
+    );
 
-  e.preventDefault();
+    button.addEventListener(
+      "pointerup",
+      release
+    );
 
-  input[key] = false;
+    button.addEventListener(
+      "pointercancel",
+      release
+    );
 
-  sendInput();
+    button.addEventListener(
+      "pointerleave",
+      release
+    );
 
-  try {
-    button.releasePointerCapture(e.pointerId);
-  } catch {}
-};
+    button.addEventListener(
+      "contextmenu",
+      e => {
+        e.preventDefault();
+      }
+    );
+  });
 
+/* =========================
+HELD INPUT
+========================= */
 
-button.addEventListener(
-  "pointerdown",
-  press
-);
-
-button.addEventListener(
-  "pointerup",
-  release
-);
-
-button.addEventListener(
-  "pointercancel",
-  release
-);
-
-button.addEventListener(
-  "lostpointercapture",
+setInterval(
   () => {
-    input[key] = false;
-    sendInput();
-  }
+
+    if (!roomId)
+      return;
+
+    if (
+      input.left ||
+      input.right ||
+      input.jump ||
+      input.shoot
+    ) {
+      sendInput();
+    }
+
+  },
+  50
 );
 
-button.addEventListener(
-  "contextmenu",
-  e => {
-    e.preventDefault();
-  }
-);
-
-});
-
-/* =====================================================
+/* =========================
 GÖRSEL OYUN
-===================================================== */
+========================= */
 
 const W = 1200;
 const H = 650;
@@ -549,156 +787,313 @@ const GROUND = 560;
 
 function draw() {
 
-const scale = Math.min(
-canvas.width / W,
-canvas.height / H
-);
+  const scale =
+    Math.min(
+      canvas.width / W,
+      canvas.height / H
+    );
 
-const ox =
-(canvas.width - W * scale) / 2;
+  const ox =
+    (canvas.width -
+      W * scale) / 2;
 
-const oy =
-(canvas.height - H * scale) / 2;
+  const oy =
+    (canvas.height -
+      H * scale) / 2;
 
-ctx.setTransform(
-scale,
-0,
-0,
-scale,
-ox,
-oy
-);
+  ctx.setTransform(
+    scale,
+    0,
+    0,
+    scale,
+    ox,
+    oy
+  );
 
-/* GÖKYÜZÜ */
+  /* GÖKYÜZÜ */
 
-const gradient =
-ctx.createLinearGradient(
-0,
-0,
-0,
-H
-);
+  const gradient =
+    ctx.createLinearGradient(
+      0,
+      0,
+      0,
+      H
+    );
 
-gradient.addColorStop(
-0,
-"#4da8d8"
-);
+  gradient.addColorStop(
+    0,
+    "#4da8d8"
+  );
 
-gradient.addColorStop(
-1,
-"#d9f3ff"
-);
+  gradient.addColorStop(
+    1,
+    "#d9f3ff"
+  );
 
-ctx.fillStyle = gradient;
+  ctx.fillStyle =
+    gradient;
 
-ctx.fillRect(
-0,
-0,
-W,
-H
-);
+  ctx.fillRect(
+    0,
+    0,
+    W,
+    H
+  );
 
-/* ARKA PLAN BİNALARI */
+  /* BİNALAR */
 
-ctx.fillStyle = "#667789";
+  ctx.fillStyle =
+    "#667789";
 
-for (
-let x = 0;
-x < W;
-x += 75
-) {
+  for (
+    let x = 0;
+    x < W;
+    x += 75
+  ) {
 
-ctx.fillRect(
-  x,
-  255 + (x % 90),
-  58,
-  170
-);
-
-}
-
-/* ÇİM */
-
-ctx.fillStyle = "#52b957";
-
-ctx.fillRect(
-0,
-GROUND,
-W,
-H - GROUND
-);
-
-ctx.fillStyle = "#d8f2d5";
-
-ctx.fillRect(
-0,
-GROUND,
-W,
-7
-);
-
-/* ORTA ÇİZGİ */
-
-ctx.strokeStyle = "#ffffffaa";
-ctx.lineWidth = 5;
-
-ctx.beginPath();
-
-ctx.moveTo(
-W / 2,
-GROUND
-);
-
-ctx.lineTo(
-W / 2,
-150
-);
-
-ctx.stroke();
-
-ctx.beginPath();
-
-ctx.arc(
-W / 2,
-GROUND,
-90,
-Math.PI,
-0
-);
-
-ctx.stroke();
-
-/* KALELER */
-
-drawGoal(0);
-drawGoal(1);
-
-/* OYUNCULAR */
-
-if (state.players) {
-
-state.players.forEach(
-  (p, i) => {
-    drawCharacter(p, i);
+    ctx.fillRect(
+      x,
+      255 + (x % 90),
+      58,
+      170
+    );
   }
-);
 
+  /* ÇİM */
+
+  ctx.fillStyle =
+    "#52b957";
+
+  ctx.fillRect(
+    0,
+    GROUND,
+    W,
+    H - GROUND
+  );
+
+  ctx.fillStyle =
+    "#d8f2d5";
+
+  ctx.fillRect(
+    0,
+    GROUND,
+    W,
+    7
+  );
+
+  /* ORTA ÇİZGİ */
+
+  ctx.strokeStyle =
+    "#ffffffaa";
+
+  ctx.lineWidth = 5;
+
+  ctx.beginPath();
+
+  ctx.moveTo(
+    W / 2,
+    GROUND
+  );
+
+  ctx.lineTo(
+    W / 2,
+    150
+  );
+
+  ctx.stroke();
+
+  ctx.beginPath();
+
+  ctx.arc(
+    W / 2,
+    GROUND,
+    90,
+    Math.PI,
+    0
+  );
+
+  ctx.stroke();
+
+  /* KALELER */
+
+  drawGoal(0);
+  drawGoal(1);
+
+  /* GÜÇ */
+
+  if (
+    state.power &&
+    state.power.active
+  ) {
+
+    drawPower(
+      state.power
+    );
+  }
+
+  /* OYUNCULAR */
+
+  if (state.players) {
+
+    state.players.forEach(
+      (p, i) => {
+
+        drawCharacter(
+          p,
+          i
+        );
+      }
+    );
+  }
+
+  /* TOP */
+
+  if (state.ball) {
+    drawBall(
+      state.ball
+    );
+  }
+
+  ctx.setTransform(
+    1,
+    0,
+    0,
+    1,
+    0,
+    0
+  );
 }
 
-/* TOP */
+/* =========================
+GÜÇ ÇİZ
+========================= */
 
-if (state.ball) {
-drawBall(state.ball);
-}
+function drawPower(power) {
 
-ctx.setTransform(
-1,
-0,
-0,
-1,
-0,
-0
-);
+  const x = power.x;
+  const y = power.y;
+
+  let color =
+    "#ffffff";
+
+  let symbol =
+    "?";
+
+  if (
+    power.type === "speed"
+  ) {
+    color = "#ffe600";
+    symbol = "⚡";
+  }
+
+  if (
+    power.type === "strongShot"
+  ) {
+    color = "#ff4b35";
+    symbol = "💥";
+  }
+
+  if (
+    power.type === "superJump"
+  ) {
+    color = "#42e8ff";
+    symbol = "🦘";
+  }
+
+  if (
+    power.type === "shield"
+  ) {
+    color = "#7d7cff";
+    symbol = "🛡️";
+  }
+
+  if (
+    power.type === "slow"
+  ) {
+    color = "#8eeaff";
+    symbol = "❄️";
+  }
+
+  /* parlama */
+
+  const pulse =
+    1 +
+    Math.sin(
+      performance.now() / 150
+    ) * 0.12;
+
+  ctx.save();
+
+  ctx.translate(
+    x,
+    y
+  );
+
+  ctx.scale(
+    pulse,
+    pulse
+  );
+
+  ctx.shadowColor =
+    color;
+
+  ctx.shadowBlur = 25;
+
+  ctx.fillStyle =
+    color;
+
+  ctx.beginPath();
+
+  ctx.arc(
+    0,
+    0,
+    27,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle =
+    "#222";
+
+  ctx.font =
+    "bold 25px Arial";
+
+  ctx.textAlign =
+    "center";
+
+  ctx.textBaseline =
+    "middle";
+
+  ctx.fillText(
+    symbol,
+    0,
+    1
+  );
+
+  ctx.restore();
+
+  /* ALT YAZI */
+
+  ctx.fillStyle =
+    "#fff";
+
+  ctx.font =
+    "bold 13px Arial";
+
+  ctx.textAlign =
+    "center";
+
+  ctx.fillText(
+    powerName(
+      power.type
+    ),
+    x,
+    y - 40
+  );
 }
 
 /* =========================
@@ -707,69 +1102,69 @@ KALE
 
 function drawGoal(side) {
 
-const x =
-side === 0
-? 0
-: W - 115;
+  const x =
+    side === 0
+      ? 0
+      : W - 115;
 
-ctx.strokeStyle = "#ffffff";
-ctx.lineWidth = 9;
+  ctx.strokeStyle =
+    "#ffffff";
 
-ctx.strokeRect(
-x,
-410,
-115,
-150
-);
+  ctx.lineWidth = 9;
 
-/* KALE AĞI */
+  ctx.strokeRect(
+    x,
+    410,
+    115,
+    150
+  );
 
-ctx.strokeStyle = "#ffffff55";
-ctx.lineWidth = 2;
+  ctx.strokeStyle =
+    "#ffffff55";
 
-for (
-let y = 420;
-y < 560;
-y += 20
-) {
+  ctx.lineWidth = 2;
 
-ctx.beginPath();
+  for (
+    let y = 420;
+    y < 560;
+    y += 20
+  ) {
 
-ctx.moveTo(
-  x,
-  y
-);
+    ctx.beginPath();
 
-ctx.lineTo(
-  x + 115,
-  y
-);
+    ctx.moveTo(
+      x,
+      y
+    );
 
-ctx.stroke();
+    ctx.lineTo(
+      x + 115,
+      y
+    );
 
-}
+    ctx.stroke();
+  }
 
-for (
-let xx = x;
-xx <= x + 115;
-xx += 20
-) {
+  for (
+    let xx = x;
+    xx <= x + 115;
+    xx += 20
+  ) {
 
-ctx.beginPath();
+    ctx.beginPath();
 
-ctx.moveTo(
-  xx,
-  410
-);
+    ctx.moveTo(
+      xx,
+      410
+    );
 
-ctx.lineTo(
-  xx,
-  560
-);
+    ctx.lineTo(
+      xx,
+      560
+    );
 
-ctx.stroke();
-
-}
+    ctx.stroke();
+  }
 }
 
 /* =========================
@@ -778,191 +1173,277 @@ OYUNCU
 
 function drawCharacter(p, i) {
 
-const x = p.x;
-const y = p.y;
+  const x = p.x;
+  const y = p.y;
 
-/* GÖLGE */
+  /* GÖLGE */
 
-ctx.fillStyle = "#0003";
+  ctx.fillStyle =
+    "#0003";
 
-ctx.beginPath();
+  ctx.beginPath();
 
-ctx.ellipse(
-x,
-GROUND + 3,
-48,
-10,
-0,
-0,
-Math.PI * 2
-);
+  ctx.ellipse(
+    x,
+    GROUND + 3,
+    48,
+    10,
+    0,
+    0,
+    Math.PI * 2
+  );
 
-ctx.fill();
+  ctx.fill();
 
-/* AYAK */
+  /* KALKAN */
 
-ctx.fillStyle = "#222b38";
+  if (
+    p.power &&
+    p.power.shield
+  ) {
 
-ctx.fillRect(
-x - 30,
-y + 91,
-23,
-20
-);
+    ctx.strokeStyle =
+      "#6e7cff";
 
-ctx.fillRect(
-x + 7,
-y + 91,
-23,
-20
-);
+    ctx.lineWidth = 7;
 
-/* GÖVDE */
+    ctx.shadowColor =
+      "#6e7cff";
 
-ctx.fillStyle =
-i === 0
-? "#258eea"
-: "#e9415d";
+    ctx.shadowBlur = 25;
 
-ctx.beginPath();
+    ctx.beginPath();
 
-if (ctx.roundRect) {
+    ctx.arc(
+      x,
+      y + 48,
+      62,
+      0,
+      Math.PI * 2
+    );
 
-ctx.roundRect(
-  x - 34,
-  y + 45,
-  68,
-  57,
-  15
-);
+    ctx.stroke();
 
-} else {
+    ctx.shadowBlur = 0;
+  }
 
-ctx.rect(
-  x - 34,
-  y + 45,
-  68,
-  57
-);
+  /* GÜÇ GÖSTERGESİ */
 
-}
+  if (p.power) {
 
-ctx.fill();
+    let text = "";
 
-/* ŞORT */
+    if (p.power.speed)
+      text = "⚡ HIZ";
 
-ctx.fillStyle = "#1c2636";
+    if (p.power.strongShot)
+      text = "💥 GÜÇLÜ ŞUT";
 
-ctx.fillRect(
-x - 34,
-y + 84,
-68,
-24
-);
+    if (p.power.superJump)
+      text = "🦘 ZIPLAMA";
 
-/* BOYUN */
+    if (p.power.shield)
+      text = "🛡️ KALKAN";
 
-ctx.fillStyle = "#d99870";
+    if (p.power.slow)
+      text = "❄️ YAVAŞ";
 
-ctx.fillRect(
-x - 9,
-y + 37,
-18,
-16
-);
+    if (text) {
 
-/* KAFA */
+      ctx.fillStyle =
+        "#fff";
 
-ctx.fillStyle = "#e8aa82";
+      ctx.font =
+        "bold 13px Arial";
 
-ctx.beginPath();
+      ctx.textAlign =
+        "center";
 
-ctx.arc(
-x,
-y + 27,
-38,
-0,
-Math.PI * 2
-);
+      ctx.fillText(
+        text,
+        x,
+        y - 38
+      );
+    }
+  }
 
-ctx.fill();
+  /* AYAK */
 
-/* SAÇ */
+  ctx.fillStyle =
+    "#222b38";
 
-ctx.fillStyle = "#24201e";
+  ctx.fillRect(
+    x - 30,
+    y + 91,
+    23,
+    20
+  );
 
-ctx.beginPath();
+  ctx.fillRect(
+    x + 7,
+    y + 91,
+    23,
+    20
+  );
 
-ctx.arc(
-x,
-y + 17,
-38,
-Math.PI,
-Math.PI * 2
-);
+  /* GÖVDE */
 
-ctx.fill();
+  ctx.fillStyle =
+    i === 0
+      ? "#258eea"
+      : "#e9415d";
 
-ctx.fillRect(
-x - 37,
-y + 14,
-10,
-12
-);
+  ctx.beginPath();
 
-/* GÖZLER */
+  if (ctx.roundRect) {
 
-ctx.fillStyle = "#14171c";
+    ctx.roundRect(
+      x - 34,
+      y + 45,
+      68,
+      57,
+      15
+    );
 
-ctx.beginPath();
+  } else {
 
-ctx.arc(
-x - 13,
-y + 27,
-4,
-0,
-Math.PI * 2
-);
+    ctx.rect(
+      x - 34,
+      y + 45,
+      68,
+      57
+    );
+  }
 
-ctx.arc(
-x + 13,
-y + 27,
-4,
-0,
-Math.PI * 2
-);
+  ctx.fill();
 
-ctx.fill();
+  /* ŞORT */
 
-/* AYAKKABI */
+  ctx.fillStyle =
+    "#1c2636";
 
-ctx.fillStyle = "#f2f2f2";
+  ctx.fillRect(
+    x - 34,
+    y + 84,
+    68,
+    24
+  );
 
-ctx.fillRect(
-x - 38,
-y + 108,
-32,
-11
-);
+  /* BOYUN */
 
-ctx.fillRect(
-x + 7,
-y + 108,
-32,
-11
-);
+  ctx.fillStyle =
+    "#d99870";
 
-/* İSİM */
+  ctx.fillRect(
+    x - 9,
+    y + 37,
+    18,
+    16
+  );
 
-ctx.fillStyle = "#fff";
-ctx.font = "bold 14px Arial";
-ctx.textAlign = "center";
+  /* KAFA */
 
-ctx.fillText(
-i === 0 ? "P1" : "P2",
-x,
-y - 20
-);
+  ctx.fillStyle =
+    "#e8aa82";
+
+  ctx.beginPath();
+
+  ctx.arc(
+    x,
+    y + 27,
+    38,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.fill();
+
+  /* SAÇ */
+
+  ctx.fillStyle =
+    "#24201e";
+
+  ctx.beginPath();
+
+  ctx.arc(
+    x,
+    y + 17,
+    38,
+    Math.PI,
+    Math.PI * 2
+  );
+
+  ctx.fill();
+
+  ctx.fillRect(
+    x - 37,
+    y + 14,
+    10,
+    12
+  );
+
+  /* GÖZLER */
+
+  ctx.fillStyle =
+    "#14171c";
+
+  ctx.beginPath();
+
+  ctx.arc(
+    x - 13,
+    y + 27,
+    4,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.arc(
+    x + 13,
+    y + 27,
+    4,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.fill();
+
+  /* AYAKKABI */
+
+  ctx.fillStyle =
+    "#f2f2f2";
+
+  ctx.fillRect(
+    x - 38,
+    y + 108,
+    32,
+    11
+  );
+
+  ctx.fillRect(
+    x + 7,
+    y + 108,
+    32,
+    11
+  );
+
+  /* İSİM */
+
+  ctx.fillStyle =
+    "#fff";
+
+  ctx.font =
+    "bold 14px Arial";
+
+  ctx.textAlign =
+    "center";
+
+  ctx.fillText(
+    i === 0
+      ? "P1"
+      : "P2",
+    x,
+    y - 20
+  );
 }
 
 /* =========================
@@ -971,73 +1452,79 @@ TOP
 
 function drawBall(b) {
 
-const r = b.r || 24;
+  const r =
+    b.r || 24;
 
-/* GÖLGE */
+  ctx.fillStyle =
+    "#0002";
 
-ctx.fillStyle = "#0002";
+  ctx.beginPath();
 
-ctx.beginPath();
+  ctx.ellipse(
+    b.x,
+    GROUND + 2,
+    r * 1.1,
+    6,
+    0,
+    0,
+    Math.PI * 2
+  );
 
-ctx.ellipse(
-b.x,
-GROUND + 2,
-r * 1.1,
-6,
-0,
-0,
-Math.PI * 2
-);
+  ctx.fill();
 
-ctx.fill();
+  ctx.fillStyle =
+    "#fff";
 
-/* TOP */
+  ctx.beginPath();
 
-ctx.fillStyle = "#fff";
+  ctx.arc(
+    b.x,
+    b.y,
+    r,
+    0,
+    Math.PI * 2
+  );
 
-ctx.beginPath();
+  ctx.fill();
 
-ctx.arc(
-b.x,
-b.y,
-r,
-0,
-Math.PI * 2
-);
+  ctx.strokeStyle =
+    "#222";
 
-ctx.fill();
+  ctx.lineWidth = 3;
 
-ctx.strokeStyle = "#222";
-ctx.lineWidth = 3;
+  ctx.stroke();
 
-ctx.stroke();
+  ctx.fillStyle =
+    "#222";
 
-/* TOP DESENLERİ */
+  for (
+    let i = 0;
+    i < 5;
+    i++
+  ) {
 
-ctx.fillStyle = "#222";
+    const a =
+      i *
+      Math.PI *
+      2 /
+      5;
 
-for (
-let i = 0;
-i < 5;
-i++
-) {
+    ctx.beginPath();
 
-const a =
-  i * Math.PI * 2 / 5;
+    ctx.arc(
+      b.x +
+        Math.cos(a) * 9,
 
-ctx.beginPath();
+      b.y +
+        Math.sin(a) * 9,
 
-ctx.arc(
-  b.x + Math.cos(a) * 9,
-  b.y + Math.sin(a) * 9,
-  5,
-  0,
-  Math.PI * 2
-);
+      5,
+      0,
+      Math.PI * 2
+    );
 
-ctx.fill();
-
-}
+    ctx.fill();
+  }
 }
 
 /* =========================
@@ -1045,10 +1532,13 @@ ANİMASYON
 ========================= */
 
 function loop() {
+  draw();
 
-draw();
-
-requestAnimationFrame(loop);
+  requestAnimationFrame(
+    loop
+  );
 }
 
-requestAnimationFrame(loop);
+requestAnimationFrame(
+  loop
+);
